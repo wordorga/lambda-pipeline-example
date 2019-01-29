@@ -1,0 +1,14 @@
+version: 0.2
+phases:
+  install:
+    commands:
+      - make build
+  build:
+    commands:
+      # Create a deployment package and upload to s3
+      - aws cloudformation package --template-file template.yaml --s3-bucket $ARTIFACT_BUCKET
+                                   --output-template-file output_template.yaml --debug
+artifacts:
+  type: zip
+  files:
+    - '**/*'

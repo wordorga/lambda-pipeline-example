@@ -1,0 +1,101 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: An example lambda appication.
+Resources:
+  hello:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Description: Hello function
+      FunctionName: hello
+      Runtime: python2.7
+      Handler: hello.lambda_handler
+      CodeUri: ./build
+      MemorySize: 128
+      Timeout: 10
+
+      Events:
+        HelloApi:
+          Type: Api
+          Properties:
+            Path: /hello
+            Method: GET
+
+      AutoPublishAlias: live
+
+      DeploymentPreference:
+         Type: AllAtOnce
+         Alarms:
+            # A list of alarms that you want to monitor
+            - !Ref AliasErrorMetricGreaterThanZeroAlarm
+            - !Ref LatestVersionErrorMetricGreaterThanZeroAlarm
+         Hooks:
+            # Validation Lambda functions that are run before & after traffic
+            PreTraffic: !Ref CodeDeployHookHelloPreTraffic
+            # PostTraffic: !Ref HelloPostTrafficHook
+
+  CodeDeployHookHelloPreTraffic:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: pre_traffic_hook.lambda_handler
+      CodeUri: ./build
+      Runtime: python2.7
+      # Function name must start with CodeDeployHook_ for IAM
+      # permissions to work.
+      FunctionName: 'CodeDeployHook_HelloPreTraffic'
+      Timeout: 10
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+          - Effect: "Allow"
+            Action:
+              - "codedeploy:PutLifecycleEventHookExecutionStatus"
+            Resource:
+              !Sub 'arn:aws:codedeploy:${AWS::Region}:${AWS::AccountId}:deploymentgroup:${ServerlessDeploymentApplication}/*'
+        - Version: "2012-10-17"
+          Statement:
+          - Effect: "Allow"
+            Action:
+              - "lambda:InvokeFunction"
+            Resource: !Ref hello.Version
+      DeploymentPreference:
+        Enabled: false
+        Role: ""
+      Environment:
+        Variables:
+          CurrentVersion: !Ref hello.Version
+
+  AliasErrorMetricGreaterThanZeroAlarm:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmDescription: Lambda Function Error > 0
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: Resource
+          Value: !Sub "${hello}:live"
+        - Name: FunctionName
+          Value: !Ref hello
+      EvaluationPeriods: 2
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Period: 60
+      Statistic: Sum
+      Threshold: 0
+
+  LatestVersionErrorMetricGreaterThanZeroAlarm:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmDescription: Lambda Function Error > 0
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: Resource
+          Value: !Sub "${hello}:live"
+        - Name: FunctionName
+          Value: !Ref hello
+        - Name: ExecutedVersion
+          Value: !GetAtt hello.Version.Version
+      EvaluationPeriods: 2
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Period: 60
+      Statistic: Sum
+      Threshold: 0

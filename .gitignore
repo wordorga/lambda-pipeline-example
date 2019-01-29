@@ -1,0 +1,4 @@
+event.json
+build/
+__pycache__
+lambda.log
