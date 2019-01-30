@@ -41,7 +41,7 @@ Resources:
       Runtime: python2.7
       # Function name must start with CodeDeployHook_ for IAM
       # permissions to work.
-      FunctionName: 'CodeDeployHook_HelloPreTraffic'
+      FunctionName: 'CodeDeployHook_hello_pre_traffic'
       Timeout: 10
       Policies:
         - Version: "2012-10-17"
